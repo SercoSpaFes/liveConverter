@@ -1,1 +1,28 @@
-Ramona to copy/paste existing requirements here...
+1	Documents
+1.1	Applicable documents
+1.2	Reference documents
+2	Introduction
+The scope of this document is to provide the user requirements of the Live TPM missions converters. 
+
+3	System Overview
+3.1	General description
+
+4	Live Converter Requirements
+In this section are reported the details of the test environment identified by IDEAS and FES: TDS, IPF to be disabled and exchange server.
+
+4.1	Product validation (Inbox handler)
+[VAL-REQ-001]: Upon reception of source data in its relevant inbox, the converter shall ensure the product is complete, conformant and not corrupted. 
+[VAL-REQ-002]: The not conformant/corrupted product shall be moved under a dedicated folder and the operator shall be notified via e-mail 
+4.2	Conversion (Converter)
+[CONV-REQ-001]: In the case the product is composed by multiple files, the LCT shall pack all the files in a single zipped (not compressed) container. 
+[CONV-REQ-002]: The LCT shall be able to handle several product types from different TPM missions. 
+[CONV-REQ-003]: The LCT shall handle all possible types of conversion errors by exiting gracefully and reporting the error encountered.
+4.3	Preservation (Circulation tool)
+[PRES-REQ-001]
+[PRES-REQ-001]
+
+
+4.4	Reporting (Reporting tool)
+[REP-REQ-001]
+4.5	Error handling
+[ERRHANDL-REQ-001]
