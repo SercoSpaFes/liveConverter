@@ -7,22 +7,117 @@ The scope of this document is to provide the user requirements of the Live TPM m
 3	System Overview
 3.1	General description
 
+ TODO: add a schema
+
 4	Live Converter Requirements
-In this section are reported the details of the test environment identified by IDEAS and FES: TDS, IPF to be disabled and exchange server.
+ - The live converter will handle product file arriving in an inbox folder structure according to configured missions.
+ - The principal stages and corresponding involved software block of the tool are:
+    - input/validation stages: an 'inbox watcher' will be aware of the inbox content and changes.
+      Based of configuration, the mission corresponding to the product file(s) will be identified and will trigger the corresponding configured flow consisting of the following stages.
+	- agregation stage: based of configuration, the mission corresponding to the product file(s) will be identified, and the configured flow will be started.
+	- conversion stage: if needed by the mission, the corresponding converter will be called 
+	- circulation and preservation stage: the 'destination' product will be circulation to the configured destination(s)
+	
 
-4.1	Product validation (Inbox handler)
-[VAL-REQ-001]: Upon reception of source data in its relevant inbox, the converter shall ensure the product is complete, conformant and not corrupted. 
-[VAL-REQ-002]: The not conformant/corrupted product shall be moved under a dedicated folder and the operator shall be notified via e-mail 
-4.2	Conversion (Converter)
-[CONV-REQ-001]: In the case the product is composed by multiple files, the LCT shall pack all the files in a single zipped (not compressed) container. 
-[CONV-REQ-002]: The LCT shall be able to handle several product types from different TPM missions. 
-[CONV-REQ-003]: The LCT shall handle all possible types of conversion errors by exiting gracefully and reporting the error encountered.
-4.3	Preservation (Circulation tool)
-[PRES-REQ-001]
-[PRES-REQ-001]
+	
+	
+4.1 Input/validation stage
+[IN-REQ-001]: Upon reception of source data file in its relevant inbox, the handler will use configured rules to identify the data file 'mission'.
+
+[IN-REQ-010]: If possible, the source data file will be verified (i.e. in case of archive, an integrity check can be done, if the MD5/CRC is available a check can be done).
+ 
+[IN-REQ-020]: If configured, the 'corrupted' source data file will be moved into a specific folder.
+
+[IN-REQ-030]: duplicated source data file shall be identified (based on md5hash) in order to not reconvert/recirculate already managed products.
+
+[IN-REQ-040]: information/status of the input handler will be persisted into a database, and in single 'status' files. The information keeped are:
+  - recognized source product, with name, size, md5, creation date, update date, completion date, completed flag, destinationDoneFlag, readyToBeDeleted flag
+  - recognized source product pieces if applicable.
+  - recognized source product flow step done if applicable, with status, date, completed flag.
 
 
-4.4	Reporting (Reporting tool)
-[REP-REQ-001]
+
+
+4.2 Agregation stage
+[AG-REQ-001]: if needed by the mission, the various pieces of the product will be considered, and when all are present, an 'agregated' (i.e. zip archive) product will be created in the configured folder.
+
+[AG-REQ-002]: The agregation rules will consist in regex expressions. A product will be considered complete if all pieces corresponding to every reggex are present.
+
+
+
+
+4.2	Conversion stage
+[CONV-REQ-001]: if needed by the mission, an external converter will be invoked in order to transform the source data product into a destination data product.
+
+[CONV-REQ-002]: The live converter will implement the external converter ICD.
+
+[CONV-REQ-003]: The interresting report/logs files created by the converter will be used to get valuable information on the source and destination products. They will be used during the reporting stage.   
+
+[CONV-REQ-010]: The information that will be keeped are:
+  - source/destination path, filename, Md5Hash, size, creation date
+  - source/destination relation
+  - conversion duration
+  
+[CONV-REQ-020]: information/status of the conversion will be persisted into a database, and in single 'conversion report' files. The information keeped are:
+  - destination product, with name, size, md5, creation date, source product info, readyToBeDeleted flag
+
+  
+
+  
+4.3	Circulation/preservation stage
+[CIRC-REQ-001]: it shall be possible to configure one or several destination per mission, and optionally per product type.
+
+[CIRC-REQ-002]: it shall be possible to use several ways of circulating product: like equivalent of cp, scp, ftp commands.
+
+[CIRC-REQ-010]: it shall be possible to consider 'duplicate' destination case (based on filename or md5hash), with replace/not-replace configurable option.
+
+
+
+
+4.4	Reporting/notification
+[REP-REQ-001]: is shall be possible to generate reports over a datetime interval, manually or automatically. 
+   The report will show 'completed' product (that is delivered to preservation element) with parent product information, possible 'pending' source products (still present in inbox for some reason: agregate to be completed, validation problem...) 
+   and 'failed' product (conversion failed, other exception...).
+   
+[REP-REQ-001]: it shall be possible to configure one or more notification channels (email, message broker, other...)
+   
+
+   
+   
+   
 4.5	Error handling
-[ERRHANDL-REQ-001]
+[ERR-REQ-001]: in case of error, the software will display a human readable error description in his log, the problem will also appear in the generated reports and in the database persisted information.
+
+[ERR-REQ-002]: if configured, error can trigger a notification using a configured notification channel, like email, syslog or other.
+
+
+
+
+
+4.6 Operational requirements
+[OP-REQ-001]: the live converter will run constantly in daemon mode. It will be started and maintained running using supervisor tool or equivalent.
+
+[OP-REQ-002]: the live converter will check for disk usage on the involved partitions and report problem if the threashold is exceeded.
+
+[OP-REQ-010]: the live converter will not duplicate what is done by external COTS it uses (MD5sums done by the converters for example), but get the info from the COTS report/log files.
+
+[OP-REQ-020]: [optional/evo:] the live converter shall be visible and manageable through the 'FES converter tool'.
+
+
+
+
+4.7 Configuration requirements
+[CONF-REQ-001]: the life converter will have a main configuration, plus several children configurations corresponding to the configured missions/flows/conversion/circulaltion.
+
+[CONF-REQ-002]: the life converter will not duplicate the configuration of the external COTS it uses (the converters for example), it will just have the setting that point to them.
+
+
+
+
+
+
+
+
+
+
+
