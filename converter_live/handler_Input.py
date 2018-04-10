@@ -1,3 +1,4 @@
+from utilities import md5
 import logger
 from threading import Thread
 import os
@@ -19,7 +20,8 @@ from mail import Mail
 
 #
 import http_notification_client
-GRAPHITE_EVENTS_URL='http://172.17.63.32:8083/events'
+
+GRAPHITE_EVENTS_URL = 'http://172.17.63.32:8083/events'
 #
 
 #####################################
@@ -95,7 +97,7 @@ def find(regex):
 class Handler_JavaConverter:
 
     def __init__(self, propFilePath):
-	
+
         self.propPath = propFilePath
         self.serv = Service()
         self.serv.init(self.propPath)
@@ -111,12 +113,11 @@ class Handler_JavaConverter:
         self.JAVA_VM = self.serv.getProperty(JAVA_VM)
         self.EMAIL_TO = self.serv.getProperty(EMAIL_TO)
         self.generalDBPATH = self.serv.getProperty(DB_PATH)
-        self.reportInboxLive = ReportFile(self.reportDir,"LiveInbox")
-
+        self.reportInboxLive = ReportFile(self.reportDir, "LiveInbox")
 
     def loadConfig(self, collection):
         logger.WriteLog("Loading properties parameters for %s" % collection)
-	first = None
+        first = None
         second = None
         third = None
         fourth = None
@@ -146,7 +147,7 @@ class Handler_JavaConverter:
             self.in_dir_DEIMOS = self.serv.getProperty(IN_DIR_DEIMOS)
             self.LINK_DEIMOS = str2bool.str2bool(self.serv.getProperty(LINK_OADS_DEIMOS).strip())
             self.OUTBOX_DEIMOS = self.serv.getProperty(OUT_DIR_DEIMOS)
-            self.tmpFolderLoads_DEIMOS = self.serv. getProperty(TMP_LOADS_DEIMOS)
+            self.tmpFolderLoads_DEIMOS = self.serv.getProperty(TMP_LOADS_DEIMOS)
             first = self.in_dir_DEIMOS
             second = self.LINK_DEIMOS
             third = self.OUTBOX_DEIMOS
@@ -178,13 +179,6 @@ class Handler_JavaConverter:
 
         return (first, second, third, fourth, fifth)
 
-    def createMD5(self, fileName):
-        logger.WriteLog("Creating MD5 for %s " % fileName)
-        hash_md5 = hashlib.md5()
-        with open(fileName, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_md5.update(chunk)
-        return hash_md5.hexdigest()
 
     def generateReport(self, reportName, singleReportDir):
         report_ = ReportFile(self.reportDir, reportName, singleReportDir)
@@ -195,15 +189,15 @@ class Handler_JavaConverter:
         if (nameFile.endswith('.tgz') or nameFile.endswith('.tar.gz')) and not nameFile.startswith('.'):
             print "Checking input file and Naming Convention"
             print "Untar test running for %s/..." % nameFile
-	    logger.WriteLog("Checking input file and Naming Convention")
-	    logger.WriteLog("Untar test running for %s/..." % nameFile)
+            logger.WriteLog("Checking input file and Naming Convention")
+            logger.WriteLog("Untar test running for %s/..." % nameFile)
             if os.system('tar tvzf %s' % os.path.join(self.in_dir_COSMO, nameFile)) == 0:
                 print "Untar test succesfully done for CosmoSkyMed"
-	        logger.WriteLog("Untar test succesfully done for CosmoSkyMed")
+                logger.WriteLog("Untar test succesfully done for CosmoSkyMed")
                 return "COSMO"
             else:
                 self.sendMail("COSMO", nameFile)
-                self.reportInboxLive.writeLiveInboxLine("ERROR: File FAILED in InBOX",productType,nameFile)
+                self.reportInboxLive.writeLiveInboxLine("ERROR: File FAILED in InBOX", productType, nameFile)
                 return False
 
         if nameFile.endswith('.zip') and nameFile.startswith('DE'):
@@ -213,45 +207,49 @@ class Handler_JavaConverter:
                 print "Uzip test succesfully done for DEIMOS product"
                 return "DEIMOS"
 
-
         ######## FIRST PHASE PROBA ##########
         if (productType == "PROBA_CHRIS" or productType == "PROBA_HRC") and not nameFile.endswith(
                 "_ToCONVERT.zip") and not nameFile.endswith(".SIP.ZIP") and not nameFile.endswith("lock"):
             print "Checking input file and Naming Convention (first phase) %s " % nameFile
-	    logger.WriteLog("Checking input file and Naming Convention (first phase) %s " % nameFile)
+            logger.WriteLog("Checking input file and Naming Convention (first phase) %s " % nameFile)
             sendGraphiteEvent('NewInput', ['liveConversion', 'proba', 'newInput'], nameFile)
             listValues = self.loadConfig(productType)
             try:
-                product_input = PROBA_product(productType, nameFile, listValues[0],listValues[1] ,listValues[2])
+                product_input = PROBA_product(productType, nameFile, listValues[0], listValues[1], listValues[2])
                 exitCode = product_input.run()
                 if exitCode == 0 or exitCode == None:
                     product_input.ingestInLTA()
-                    #self.hardLinkLongTermArchive(nameFile, listValues[1])
+                    # self.hardLinkLongTermArchive(nameFile, listValues[1])
                     return -1
                 else:
-                    self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) File FAILED in InBOX",productType, nameFile)
+                    self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) File FAILED in InBOX", productType,
+                                                            nameFile)
                     return False
             except BadZipfile as ex:
                 print "Problem: Bad Zip File in InBOX"
                 logger.WriteLog("Problem: Bad Zip File in InBOX")
-		self.sendMail(productType, nameFile, "Bad Zip File")
-                self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Bad Zip File in InBOX", productType,nameFile)
+                self.sendMail(productType, nameFile, "Bad Zip File")
+                self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Bad Zip File in InBOX", productType,
+                                                        nameFile)
                 return False
             except Exception as e:
                 print "Problem: (FirstPhase) Generic Exception in Inbox"
                 print e
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 traceback.print_exc(file=sys.stdout)
-		logger.WriteLog("Problem: (FirstPhase) Generic Exception in Inbox\n %s" % e)
-                self.sendMail(productType, nameFile, "Generic Exception in Inbox: %s %s \n %s " % (exc_type, exc_obj, exc_tb))
-                self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Generic Exception in Inbox", productType,nameFile)
+                logger.WriteLog("Problem: (FirstPhase) Generic Exception in Inbox\n %s" % e)
+                self.sendMail(productType, nameFile,
+                              "Generic Exception in Inbox: %s %s \n %s " % (exc_type, exc_obj, exc_tb))
+                self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Generic Exception in Inbox", productType,
+                                                        nameFile)
 
         ######### SECOND PHASE PROBA ############
         if (productType == "PROBA_CHRIS" or productType == "PROBA_HRC") and nameFile.endswith("_ToCONVERT.zip"):
             print "Checking input file and Naming Convention (second phase) %s" % nameFile
             logger.WriteLog("Checking input file and Naming Convention (second phase) %s" % nameFile)
- 	    listValues = self.loadConfig(productType)
-            product_input = PROBA_product(productType, nameFile.replace("_ToCONVERT", ""), listValues[0],listValues[1], listValues[2])
+            listValues = self.loadConfig(productType)
+            product_input = PROBA_product(productType, nameFile.replace("_ToCONVERT", ""), listValues[0], listValues[1],
+                                          listValues[2])
             if not product_input.checkAlreadyConverted():
                 product_input.setAlreadyConverted()
                 return productType
@@ -262,19 +260,18 @@ class Handler_JavaConverter:
     def hardLinkLongTermArchive(self, absFileTgt, folderLinkPath):
         try:
             name = os.path.basename(absFileTgt)
-            linkName = os.path.join(folderLinkPath,name)
-            exitCode = shutil.copy(absFileTgt,linkName)
-            #exitCode = os.link(absFileTgt,linkName)
+            linkName = os.path.join(folderLinkPath, name)
+            exitCode = shutil.copy(absFileTgt, linkName)
+            # exitCode = os.link(absFileTgt,linkName)
             print "File copied in LTA: %s " % linkName
 
             return exitCode
         except:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print "Error moving to LTA '%s': %s %s" % (type, absFileTgt, exc_obj)
-	    logger.WriteLog("File copied in LTA: %s " % linkName)
+            logger.WriteLog("File copied in LTA: %s " % linkName)
             traceback.print_exc(file=sys.stdout)
             raise Exception("Error moving to LTA '%s': %s %s" % (type, absFileTgt, exc_obj))
-
 
     def sendMail(self, collectionName, nameFile, message):
 
@@ -291,7 +288,7 @@ class Handler_JavaConverter:
             m.sendEmail()
         except Exception as s:
             logger.WriteLog(s)
-	    traceback._print(s)
+            traceback._print(s)
             print s
 
     def getCollectionList(self):
@@ -305,25 +302,25 @@ class Handler_JavaConverter:
     def runIngester(self, outBox, _report, tmpDir, regex):
 
         print "Moving data from %s on LOADS tmp folder...%s" % (outBox, tmpDir)
-        logger.WriteLog("Moving data from %s on LOADS tmp folder...%s" % (outBox, tmpDir)) 
-	exitCode = 0
+        logger.WriteLog("Moving data from %s on LOADS tmp folder...%s" % (outBox, tmpDir))
+        exitCode = 0
         listEOSIP = glob.glob("%s/%s" % (outBox, regex))
 
         for i in listEOSIP:
             exitCode = exitCode + os.system("mv %s %s" % (i, tmpDir))
             print "Moved %s in %s" % (i, tmpDir)
-	    logger.WriteLog("Moved %s in %s" % (i, tmpDir))
+            logger.WriteLog("Moved %s in %s" % (i, tmpDir))
         if exitCode == 0:
             print "Change ownership on file"
             exitCode = os.system("chown -R %s %s" % (ownership, tmpDir))
-	    logger.WriteLog("Change ownership on file (%s) " % tmpDir)
+            logger.WriteLog("Change ownership on file (%s) " % tmpDir)
         if exitCode == 0:
             print "Change permissions on file"
             exitCode = os.system("chmod -R 755 %s" % tmpDir)
-	    logger.WriteLog("Change permissions on file (%)" % tmpDir )
+            logger.WriteLog("Change permissions on file (%s)" % tmpDir)
         if exitCode == 0 and len(glob.glob(os.path.join(tmpDir, "*"))) != 0:
             print "Moving data on LOADS inbasket folder... %s" % self.oadsInBasket
-	    logger.WriteLog("Moving data on LOADS inbasket folder... %s" % self.oadsInBasket)
+            logger.WriteLog("Moving data on LOADS inbasket folder... %s" % self.oadsInBasket)
             exitCode = os.system("mv %s %s" % (os.path.join(tmpDir, "*"), self.oadsInBasket))
         return exitCode
 
@@ -356,11 +353,11 @@ class Handler_JavaConverter:
                             sendGraphiteEvent('ConversionDone', ['liveConversion', 'proba', 'eosipConversion'],
                                               filename)
                             if exitCodeConvertion == 0:
-
                                 print "\n\n###############################################################################################\n\n" \
-                                           "    EOSIP CONVERTION OF %s HAS BEEN DONE!\n\n" \
-                                               "###############################################################################################\n\n" % filename
-				logger.WriteLog("####################### EOSIP CONVERTION OF %s HAS BEEN DONE! #########################" % filename)
+                                      "    EOSIP CONVERTION OF %s HAS BEEN DONE!\n\n" \
+                                      "###############################################################################################\n\n" % filename
+                                logger.WriteLog(
+                                    "####################### EOSIP CONVERTION OF %s HAS BEEN DONE! #########################" % filename)
                         # run INGESTER
                         if Ingest == True and exitCodeConvertion == 0:
                             exitCodeIngestion = self.runIngester(collectionConfigurations[2], reportFinal,
@@ -371,7 +368,8 @@ class Handler_JavaConverter:
                                 print "\n\n###############################################################################################\n\n" \
                                       "    LOADS INGESTION OF %s HAS BEEN DONE!\n\n" \
                                       "###############################################################################################\n\n" % filename
-				logger.WriteLog("####################### LOADS INGESTION OF %s HAS BEEN DONE! #########################" % filename)
+                                logger.WriteLog(
+                                    "####################### LOADS INGESTION OF %s HAS BEEN DONE! #########################" % filename)
 
                     if current_collectionName != -1:
                         # UPDATE CONVERTER REPORT
@@ -380,30 +378,32 @@ class Handler_JavaConverter:
                         elif Conversion == False:
                             pass
                         else:
-                            reportFinal.writeLine(singleFile, "SUCCESS", self.createMD5(singleFile))
+                            reportFinal.writeLine(singleFile, "SUCCESS", md5.createMD5(singleFile))
                         # UPDATE INGESTER REPORT
-     
+
                         if Ingest is False or exitCodeConvertion != 0:
-                            pass 
+                            pass
                         elif ((exitCodeIngestion != 0) and (Ingest is True) and (exitCodeConvertion == 0)):
                             reportFinal.writeLineIngester(filename, "FAILED")
                         else:
                             reportFinal.writeLineIngester(filename, "INGESTED")
 
         print "Handler phase complete!\n\n\n"
-	logger.WriteLog("Handler phase complete!\n\n")
+        logger.WriteLog("Handler phase complete!\n\n")
         pass
 
     def runConversion(self, _collectionName, _watch_path, _filename, _report):
 
         print "Preparing to convert %s products" % _filename
-	logger.WriteLog("Preparing to convert %s products" % _filename)
+        logger.WriteLog("Preparing to convert %s products" % _filename)
         singleFile = os.path.join(_watch_path, _filename)
         if os.path.isfile(singleFile):
-            print "%s -jar %s -collectionName %s -s %s -c %s -i 1" % ( JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf)
-            logger.WriteLog("%s -jar %s -collectionName %s -s %s -c %s -i 1" % ( JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf))
-	    exitCode = os.system("%s -jar %s -collectionName %s -s %s -c %s -i 1" % (
+            print "%s -jar %s -collectionName %s -s %s -c %s -i 1" % (
+            JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf)
+            logger.WriteLog("%s -jar %s -collectionName %s -s %s -c %s -i 1" % (
             JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf))
+            exitCode = os.system("%s -jar %s -collectionName %s -s %s -c %s -i 1" % (
+                JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf))
         else:
             exitCode = -1
         return exitCode
@@ -421,9 +421,10 @@ class Handler_JavaConverter:
         Thread(target=self.cyclingOnDir, args=(i_proba_HRC_secondPhase, "PROBA_HRC", True, True,)).start()
         Thread(target=self.cyclingOnDir, args=(i_proba_CHRIS_firstPhase, "PROBA_CHRIS", False, False,)).start()
         Thread(target=self.cyclingOnDir, args=(i_proba_CHRIS_secondPhase, "PROBA_CHRIS", True, True,)).start()
-        tle = TLE("https://celestrak.com/NORAD/elements/engineering.txt", "sat26958.txt", 'ProbaTLE_sat26958.txt', " 26958U ", 900)
+        tle = TLE("https://celestrak.com/NORAD/elements/engineering.txt", "sat26958.txt", 'ProbaTLE_sat26958.txt',
+                  " 26958U ", 900)
         Thread(target=tle.polling).start()
-        Thread(target=DBWatcher(os.path.join(self.generalDBPATH,"ProbaDB.sqlite")).runCheck, args=23)
+        Thread(target=DBWatcher(os.path.join(self.generalDBPATH, "ProbaDB.sqlite")).runCheck, args=23)
 
 
 if __name__ == '__main__':
@@ -446,7 +447,7 @@ if __name__ == '__main__':
                  "##                                                                              ##\n" \
                  "##################################################################################\n"
 
-	logger.LoggingInit("./logs/","handler.log", html=False)
+        logger.LoggingInit("./logs/", "handler.log", html=False)
         print banner
         logger.WriteLog("Start LOGGER")
         hand = Handler_JavaConverter("handler.properties")

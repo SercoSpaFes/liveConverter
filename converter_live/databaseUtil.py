@@ -3,12 +3,12 @@ import os, sys, traceback
 
 from optparse import OptionParser
 
+#
+POSSIBLE_ACTIONS = ['createDb', 'cleanDb', 'eraseRecord', 'setDoneFlag', 'unsetDoneFlag', 'listDb',
+                    'not_processed_chris', 'not_processed_hrc', ]
 
 #
-POSSIBLE_ACTIONS=['createDb', 'cleanDb', 'eraseRecord', 'setDoneFlag', 'unsetDoneFlag', 'listDb']
-
-#
-DEFAULT_DB_CONNECTION_STRING='/nfsdata/nfsdata02/databases/converter_live/test_ProbaDB.sqlite'
+DEFAULT_DB_CONNECTION_STRING = '/nfsdata/nfsdata02/databases/converter_live/test_ProbaDB.sqlite'
 
 DB_CREATE_PROBA = '''CREATE TABLE PROBA_PRODUCTS
                      (ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +32,7 @@ DB_CREATE_PROBA = '''CREATE TABLE PROBA_PRODUCTS
                      CHECK (check_done IN (0,1)),
                      CHECK (lta_archiving_status IN (0,1))
                      );'''
+
 
 class DataBaseLite:
 
@@ -70,7 +71,6 @@ class DataBaseLite:
         self.conn.commit()
         return cursor
 
-
     def deleteEntryDB(self, deleteCommand):
         self.conn = sqlite3.connect(self.connectionString)
         print " Delete entry on DB..."
@@ -82,44 +82,43 @@ class DataBaseLite:
 def syntax():
     print "syntax: python databaseUtil -a action -k key [-s dbstring]. Possible actions are:%s" % POSSIBLE_ACTIONS
 
+
 if __name__ == '__main__':
     try:
 
-
         parser = OptionParser()
-        parser.usage = ("syntax: python databaseUtil -a action -k key [-s dbstring]. Possible actions are:%s" % POSSIBLE_ACTIONS)
+        parser.usage = (
+                    "syntax: python databaseUtil -a action -k key [-s dbstring]. Possible actions are:%s" % POSSIBLE_ACTIONS)
         parser.add_option("-a", "--action", dest="action", help="type of action; valid are:%s" % POSSIBLE_ACTIONS)
         parser.add_option("-s", "--dbString", dest="dbstring", help="the db connection string")
         parser.add_option("-k", "--key", dest="key", help="the db record key")
         (options, args) = parser.parse_args()
 
-
-        action=None
-        key=None
-        dbString=DEFAULT_DB_CONNECTION_STRING
+        action = None
+        key = None
+        dbString = DEFAULT_DB_CONNECTION_STRING
         if options.action is None:
             print " a"
             syntax()
-        action=options.action
-        if options.action!=POSSIBLE_ACTIONS[0] and options.action!=POSSIBLE_ACTIONS[1] and options.action!=POSSIBLE_ACTIONS[5]:
+        action = options.action
+        if options.action != POSSIBLE_ACTIONS[0] and options.action != POSSIBLE_ACTIONS[1] and options.action != \
+                POSSIBLE_ACTIONS[5]:
             if options.key is None:
                 print " action %s need to have a key parameter" % options.action
                 syntax()
             else:
-                key=options.key
+                key = options.key
                 print " doing %s on record:%s using dbString:%s" % (action, key, dbString)
         else:
             print " doing %s on db using dbString:%s" % (action, dbString)
 
-                
         if options.dbstring is not None:
             dbString = options.dbstring
-
 
         #
         db = DataBaseLite('default', dbString)
 
-        if action==POSSIBLE_ACTIONS[0]: # createDb
+        if action == POSSIBLE_ACTIONS[0]:  # createDb
             db.createDB()
             print " DB created"
 
@@ -134,50 +133,65 @@ if __name__ == '__main__':
 
             #
             print " 3 TESTING records added:"
-            lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS WHERE product_type = 'TESTING'" )
-            n=0
+            lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS WHERE product_type = 'TESTING'")
+            n = 0
             for item in lines:
                 print "  %s:%s" % (n, item)
-                n+=1
-            if len(lines)!=3:
+                n += 1
+            if len(lines) != 3:
                 raise Exception("DB CHECK failed: don't find the 3 TESTING records but:%s" % len(lines))
 
             #
             print " 1 TESTING records complete queryed:"
-            lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS WHERE product_type = 'TESTING' and complete=1" )
-            n=0
+            lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS WHERE product_type = 'TESTING' and complete=1")
+            n = 0
             for item in lines:
                 print "  %s:%s" % (n, item)
-                n+=1
-            if len(lines)!=1:
+                n += 1
+            if len(lines) != 1:
                 raise Exception("DB CHECK failed: don't find the 1 TESTING complete records but:%s" % len(lines))
 
             #
             print " 2 TESTING records not complete queryed:"
-            lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS WHERE product_type = 'TESTING' and complete=0" )
-            n=0
+            lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS WHERE product_type = 'TESTING' and complete=0")
+            n = 0
             for item in lines:
                 print "  %s:%s" % (n, item)
-                n+=1
-            if len(lines)!=2:
+                n += 1
+            if len(lines) != 2:
                 raise Exception("DB CHECK failed: don't find the 2 TESTING not complete records but:%s" % len(lines))
 
             # delete the 3 test records
             db.deleteEntryDB("DELETE FROM PROBA_PRODUCTS WHERE product_type = 'TESTING'")
 
             print "\n END DB integrity check\n\n"
-        
-        elif action==POSSIBLE_ACTIONS[1]: #cleanDb
+
+        elif action == POSSIBLE_ACTIONS[1]:  # cleanDb
             db.deleteEntryDB("DELETE FROM PROBA_PRODUCTS")
-        elif action==POSSIBLE_ACTIONS[2]: # eraseRecord
+        elif action == POSSIBLE_ACTIONS[2]:  # eraseRecord
             db.deleteEntryDB("DELETE FROM PROBA_PRODUCTS WHERE product_name = '%s'" % key)
-        elif action==POSSIBLE_ACTIONS[3]: # setDoneFlag
+        elif action == POSSIBLE_ACTIONS[3]:  # setDoneFlag
             db.updateEntryDB("UPDATE PROBA_PRODUCTS set complete = 'True' WHERE product_name = '%s'" % key)
-        elif action==POSSIBLE_ACTIONS[4]: # unsetDoneFlag
+        elif action == POSSIBLE_ACTIONS[4]:  # unsetDoneFlag
             db.updateEntryDB("UPDATE PROBA_PRODUCTS set complete = 'False' WHERE product_name = '%s'" % key)
-        elif action==POSSIBLE_ACTIONS[5]: # listDb
+        elif action == POSSIBLE_ACTIONS[5]:  # listDb
             lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS")
-            print lines
+            for i in lines:
+                print i
+        elif action == POSSIBLE_ACTIONS[6]:
+            lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS WHERE zip='1' AND xml='1' AND jpg='1' AND complete='0'")
+            if len(lines)>0:
+                for i in lines:
+                    print i
+            else:
+                print "Query resultSet empty..."
+        elif action == POSSIBLE_ACTIONS[7]:
+            lines = db.queryDB("SELECT * FROM PROBA_PRODUCTS WHERE jpg='1' AND xml='1' AND bmp='1' AND complete='0'")
+            if len(lines)>0:
+                for i in lines:
+                    print i
+            else:
+                print "Query resultSet empty..."
         else:
             raise Exception(" unknown action:'%s'" % action)
 
@@ -191,4 +205,3 @@ if __name__ == '__main__':
         exc_type, exc_obj, exc_tb = sys.exc_info()
         print(" Error '%s %s'" % (exc_type, exc_obj))
         traceback.print_exc(file=sys.stdout)
-
