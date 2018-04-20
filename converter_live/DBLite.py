@@ -1,3 +1,4 @@
+from datetime import datetime
 import sqlite3
 import os
 
@@ -6,7 +7,7 @@ class DataBaseLite:
     def __init__(self, nameDB, DB_STRING):
         self.nameDB = nameDB
         self.DB_STRING = DB_STRING
-        if not os.path.isfile(nameDB) and not self.DB_STRING is None:
+        if not os.path.isfile(nameDB) and self.DB_STRING is not None:
             self.createDB()
 
     def createDB(self):
@@ -48,6 +49,13 @@ class DataBaseLite:
         print "Delete entry on DB..."
         self.conn.execute(deleteCommand)
         self.conn.commit()
+
+    def generateDailyInfo(self, tableName, upperTimeRange=None):
+        if upperTimeRange is None:
+            upperTimeRange = datetime.now().strftime('%s')
+        lowerTimeRange = int(upperTimeRange) - 86400
+        resultset = self.queryDB("SELECT * FROM %s WHERE Insertion_date BETWEEN %s AND %s" % (tableName,lowerTimeRange,upperTimeRange))
+        return resultset
 
 
 if __name__ == '__main__':

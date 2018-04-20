@@ -5,13 +5,9 @@
 #
 # Lavaux Gilles 2018-01
 #
-
-
-import argparse
 import json
 import os, sys, time
 import traceback
-
 import requests
 
 

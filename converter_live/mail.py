@@ -1,3 +1,8 @@
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
 import sys
 import smtplib
 import logging
@@ -23,7 +28,7 @@ class Mail:
         self.port = port
         logging.basicConfig(filename=self.LOG_FILE, level=logging.DEBUG)
 
-    def sendEmail(self):
+    def sendEmail(self, html=False):
         try:
             msg = MIMEMultipart()
             msg['Subject'] = self.SUBJECT
@@ -33,13 +38,15 @@ class Mail:
             cc = []
             _REC = "%s,%s" % (msg['To'], msg['Bcc'])
             part1 = MIMEText(self.TEXT)
+            if html:
+                part1 = MIMEText(self.TEXT, 'html')
             msg.attach(part1)
-            print "will create smtp obj"
+            print("will create smtp obj")
             smtpObj = smtplib.SMTP(self.SMTP_HOST, self.port)
-            print "Got SMTP obj"
+            print("Got SMTP obj")
             smtpObj.set_debuglevel(0)
             smtpObj.sendmail(self.FROM, _REC.split(',')[0], msg.as_string())
-            print "Email SENT"
+            print("Email SENT")
         except smtplib.SMTPRecipientsRefused:
             logging.debug("Error:All recipients were refused. Nobody got the mail")
         except smtplib.SMTPHeloError:
@@ -51,8 +58,8 @@ class Mail:
         except smtplib.SMTPException:
             logging.debug("Error Unable to send email")
         except:
-            print "Error:%s" % sys.exc_info()[0]
-            print "Error:%s" % (sys.exc_info(),)
+            print("Error:%s" % sys.exc_info()[0])
+            print("Error:%s" % (sys.exc_info(),))
 
         logging.info("mail sent")
 

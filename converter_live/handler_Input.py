@@ -229,8 +229,7 @@ class Handler_JavaConverter:
                 print "Problem: Bad Zip File in InBOX"
                 logger.WriteLog("Problem: Bad Zip File in InBOX")
                 self.sendMail(productType, nameFile, "Bad Zip File")
-                self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Bad Zip File in InBOX", productType,
-                                                        nameFile)
+                self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Bad Zip File in InBOX", productType, nameFile)
                 return False
             except Exception as e:
                 print "Problem: (FirstPhase) Generic Exception in Inbox"
@@ -238,8 +237,7 @@ class Handler_JavaConverter:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 traceback.print_exc(file=sys.stdout)
                 logger.WriteLog("Problem: (FirstPhase) Generic Exception in Inbox\n %s" % e)
-                self.sendMail(productType, nameFile,
-                              "Generic Exception in Inbox: %s %s \n %s " % (exc_type, exc_obj, exc_tb))
+                self.sendMail(productType, nameFile, "Generic Exception in Inbox: %s %s \n %s " % (exc_type, exc_obj,exc_tb))
                 self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Generic Exception in Inbox", productType,
                                                         nameFile)
 
