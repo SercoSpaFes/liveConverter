@@ -62,7 +62,7 @@ class ReportFile:
 
     def writeLiveInboxLine(self, message, productType, nameFile):
         f = open(self.collectionFile, 'a')
-        f.write("%s,%s,%s,%s,%s\n" % (message, datetime.now(), productType, nameFile, datetime.now().strftime('%s')))
+        f.write("%s,%s,%s,%s,%s,%s\n" % (message, datetime.now(), productType, nameFile, datetime.now().strftime('%s'), os.path.getsize(nameFile)))
         f.close()
 
     def writeLine(self, inputFile, result, md5_in):
@@ -368,8 +368,23 @@ class ReportReader:
             add = 0
         return failed
 
-    def getLiveInboxFailed(self):
-        pass
+    def getLiveInboxFailed(self, reportPath="/home/datamanager/converter-live/handler", lowRange, highRange):
+        inboxFile = glob.glob("%s/LiveInbox_report_%s%s.csv" % (reportPath, datetime.now().year,datetime.strftime('%m')))
+        flines = open(inboxFile, 'r').readlines()
+        failed = []
+        for report in flines:
+#Problem: (FirstPhase) File FAILED in InBOX,2018-04-23 22:30:10.334681,PROBA_CHRIS,/nfsdata2/PROBA/Inbox/CHRIS/CHRIS_KA_180413_4762_41.zip,1524515410,12234543(size)
+            if report[4] > lowRange and report[4] < highRange:
+                size         = report[5]
+                epochTime    = report[4]
+                absPathFile  = report[3]
+                prodType     = report[2]
+                humanDate    = report[1]
+                messageError = "Corrupted File (bad zip/bad file size)"
+                dateSplit = humanDate.split(" ")
+                failed.append("%s,%s,%s,%s" % (os.path.basename(absPathFile), dateSplit[0], dateSplit[1],messageError) )
+        return failed
+
 
 
 class Md5Manifest():

@@ -204,6 +204,7 @@ class PROBA_product:
                 print "ERROR: File Corrupted"
         raise Exception("ERROR: File Corrupted")
 
+
     def queryDB(self, filename, extension_element):
         sql = "SELECT %s FROM PROBA_PRODUCTS WHERE product_name ='%s'" % (extension_element, filename)
         print " queryDB sql=%s" % sql
