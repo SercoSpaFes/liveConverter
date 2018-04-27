@@ -31,6 +31,7 @@ GRAPHITE_EVENTS_URL = 'http://172.17.63.32:8083/events'
 
 CONVERTER_PATH = "CONVERTER_PATH"
 CONVERTER_CONF = "CONVERTER_CONF"
+CONVERTER_REPORT_DIR = "CONVERTER_REPORT_DIR"
 SINGLE_REPORT_PATH_FOLDER = "SINGLE_REPORT_PATH_FOLDER"
 DB_PATH = "DB_PATH"
 
@@ -67,7 +68,7 @@ TMP_FOLDER_LOADS = "TMP_FOLDER_LOADS"
 EMAIL_TO = "EMAIL_TO"
 
 JAVA_VM = "/nfsdata/nfsdata02/CONVERTERS/JAVA_CONVERTER/converter-COSMO/jre1.8.0_144/bin/java"
-ownership = "datamanager:datamanager"
+ownership = "oadsrun:oads"
 
 ####################################
 #    End Properties description    #
@@ -103,7 +104,8 @@ class Handler_JavaConverter:
         self.serv.init(self.propPath)
         self.converterPath = self.serv.getProperty(CONVERTER_PATH)
         self.converterConf = self.serv.getProperty(CONVERTER_CONF)
-        self.reportDir = self.serv.getProperty(REPORT_PATH_FOLDER)
+        self.reportDir =          self.serv.getProperty(REPORT_PATH_FOLDER)
+	self.reportDirConverter = self.serv.getProperty(CONVERTER_REPORT_DIR)
         self.singleReportDir = self.serv.getProperty(SINGLE_REPORT_PATH_FOLDER)
         self.confValueCOSMO = self.loadConfig("COSMO")
         self.confValuePROBA_CHRIS = self.loadConfig("PROBA_CHRIS")
@@ -229,7 +231,8 @@ class Handler_JavaConverter:
                 print "Problem: Bad Zip File in InBOX"
                 logger.WriteLog("Problem: Bad Zip File in InBOX")
                 self.sendMail(productType, nameFile, "Bad Zip File")
-                self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Bad Zip File in InBOX", productType, nameFile)
+                self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Bad Zip File in InBOX", productType,
+                                                        nameFile)
                 return False
             except Exception as e:
                 print "Problem: (FirstPhase) Generic Exception in Inbox"
@@ -237,7 +240,8 @@ class Handler_JavaConverter:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 traceback.print_exc(file=sys.stdout)
                 logger.WriteLog("Problem: (FirstPhase) Generic Exception in Inbox\n %s" % e)
-                self.sendMail(productType, nameFile, "Generic Exception in Inbox: %s %s \n %s " % (exc_type, exc_obj,exc_tb))
+                self.sendMail(productType, nameFile,
+                              "Generic Exception in Inbox: %s %s \n %s " % (exc_type, exc_obj, exc_tb))
                 self.reportInboxLive.writeLiveInboxLine("Problem: (FirstPhase) Generic Exception in Inbox", productType,
                                                         nameFile)
 
@@ -422,7 +426,7 @@ class Handler_JavaConverter:
         tle = TLE("https://celestrak.com/NORAD/elements/engineering.txt", "sat26958.txt", 'ProbaTLE_sat26958.txt',
                   " 26958U ", 900)
         Thread(target=tle.polling).start()
-        Thread(target=DBWatcher(os.path.join(self.generalDBPATH, "ProbaDB.sqlite")).runCheck, args=23)
+        Thread(target=DBWatcher(os.path.join(self.generalDBPATH, "ProbaDB.sqlite"), self.reportDirConverter).runCheck, args=00)
 
 
 if __name__ == '__main__':

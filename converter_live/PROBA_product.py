@@ -5,12 +5,12 @@ import traceback
 import zipfile
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
 import shutil
 from DBLite import DataBaseLite
 from mail import Mail
-
+from ReportFile import ReportReader
 # GL:
 import myConstants
 
@@ -355,12 +355,13 @@ class PROBA_product:
 
 class DBWatcher:
 
-    def __init__(self, pathDB):
+    def __init__(self, pathDB, reportPath):
         print "Daemon is polling on DB %s \n" % pathDB
         logger.WriteLog("Daemon is polling on DB %s \n" % pathDB)
         self.db = DataBaseLite(pathDB, None)
         self.emailTo = "dissemination@serco.com"
         self.timeLimit = (3600 * 24)
+        self.dailyReport = ReportReader(reportPath, pathDB)
 
     def sendMail(self, productName):
 
@@ -396,7 +397,22 @@ class DBWatcher:
     def runCheck(self, dailyHourCrontab):
 
         print "Start Proba DB-Watcher Daemon..."
+        pType = ["PROBA_CHRIS", "PROBA_HRC"]
+        daysDelta = 1
         while True:
-            if (datetime.now().hour == dailyHourCrontab):
-                print "Start Check on Database"
-                self.checkIncomplete(self.timeLimit)
+
+            if datetime.now().hour == dailyHourCrontab and datetime.now().minute == 30:
+                for _pType in pType:
+                    body = self.dailyReport.createDailyReport(_pType, daysDelta)
+		    s = _pType.replace("PROBA_","PROBA-1 ")
+		    mail = Mail("Dissemination Team <info@apps.eo.esa.int>", "roberto.biasutti@esa.int,bruno.schmitt@esa.int","%s daily report (%s)" % (s,(datetime.now() - timedelta(daysDelta)).strftime("%a %b %d %Y")), hostMail='localhost', bcc=None, cc="dissemination@serco.com,giulio82.villani@libero.it", logFile=None, textMail=body, port=25)
+#                    mail = Mail("Dissemination Team <info@apps.eo.esa.int>", "giulio82.villani@libero.it",                                "%s daily report (%s)" % (                                _pType, (datetime.now() - timedelta(daysDelta)).strftime("%a %b %d %Y")), hostMail='localhost',                                bbc=None, cc="alessandro.maltese@gmail.com", logFile=None, textMail=body, port=25)
+                    mail.sendEmail(True)
+		    logger.WriteLog("Crontab event: sent daily report at %s:%s" % (dailyHourCrontab,datetime.now().minute))
+		print "Crontab Python of %s:%s" % (dailyHourCrontab,datetime.now().minute)
+                time.sleep(61)
+
+if __name__ == '__main__':
+
+    dbW = DBWatcher("/nfsdata/nfsdata02/databases/converter_live/ProbaDB.sqlite", "/home/datamanager/converter-live/reports/")
+    dbW.runCheck(14)

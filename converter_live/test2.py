@@ -1,8 +1,20 @@
-from astropy.table import Table, Column
-import numpy as np
+from datetime import datetime
+import time
+from datetime import datetime
 
-t = Table(names=('a', 'b', 'c'), dtype=('f', 'i', 'S'))
-t.add_row((1, 2.0, 'x'))
-t.add_row((4, 5.0, 'y'))
+now = datetime.now()
+seconds_since_midnight = (now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
 
-print t
+
+
+n = 18
+ciao1 = (time.time() - seconds_since_midnight) - 86400*(n)
+ciao2 = (time.time() - seconds_since_midnight) - 86400*(n-1)
+
+ciao = 1523291495.0
+
+
+if ciao<ciao2 and ciao>ciao1:
+    print "OK"
+
+

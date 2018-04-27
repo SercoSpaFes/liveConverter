@@ -12,7 +12,7 @@ from email.mime.text import MIMEText
 
 class Mail:
 
-    def __init__(self, senderMail, toMail, subjectMail , hostMail='localhost', bbc=None, cc=None, logFile=None, textMail=None,port=25):
+    def __init__(self, senderMail, toMail, subjectMail , hostMail='localhost', bcc=None, cc=None, logFile=None, textMail=None,port=25):
 
         self.FROM = senderMail
         self.TO = toMail
@@ -22,7 +22,7 @@ class Mail:
             self.LOG_FILE = "mailPython.log"
         else:
             self.LOG_FILE = logFile
-        self._BCC = bbc
+        self._BCC = bcc
         self.CC = cc
         self.TEXT = textMail
         self.port = port
@@ -35,8 +35,8 @@ class Mail:
             msg['From'] = self.FROM
             msg['To'] = self.TO
             msg['Bcc'] = self._BCC
-            cc = []
-            _REC = "%s,%s" % (msg['To'], msg['Bcc'])
+            msg['cc'] = self.CC
+            _REC = "%s,%s,%s" % (msg['To'],msg['cc'],msg['Bcc'])
             part1 = MIMEText(self.TEXT)
             if html:
                 part1 = MIMEText(self.TEXT, 'html')
@@ -45,7 +45,8 @@ class Mail:
             smtpObj = smtplib.SMTP(self.SMTP_HOST, self.port)
             print("Got SMTP obj")
             smtpObj.set_debuglevel(0)
-            smtpObj.sendmail(self.FROM, _REC.split(',')[0], msg.as_string())
+            for i in _REC.split(','):
+                smtpObj.sendmail(self.FROM, i, msg.as_string())
             print("Email SENT")
         except smtplib.SMTPRecipientsRefused:
             logging.debug("Error:All recipients were refused. Nobody got the mail")
