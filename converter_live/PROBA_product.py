@@ -28,7 +28,8 @@ class PROBA_product:
                  Already_Converted      BOOLEAN     DEFAULT FALSE,
                  COMPLETE               BOOLEAN     DEFAULT FALSE,
                  CheckDone              BOOLEAN     DEFAULT FALSE,
-                 LTA_Archiving_Status   BOOLEAN     DEFAULT FALSE                    
+                 LTA_Archiving_Status   BOOLEAN     DEFAULT FALSE,
+                 conversion_state       BOOLEAN     DEFAULT FALSE       
                  );'''
 
     DB_String_PROBA = '''CREATE TABLE PROBA_PRODUCTS
@@ -204,7 +205,6 @@ class PROBA_product:
                 print "ERROR: File Corrupted"
         raise Exception("ERROR: File Corrupted")
 
-
     def queryDB(self, filename, extension_element):
         sql = "SELECT %s FROM PROBA_PRODUCTS WHERE product_name ='%s'" % (extension_element, filename)
         print " queryDB sql=%s" % sql
@@ -244,7 +244,7 @@ class PROBA_product:
                 print "INFO: Updating field %s related to product %s on DB" % (extension_element, filename)
                 logger.WriteLog("INFO: Updating field %s related to product %s on DB" % (extension_element, filename))
                 self.probaDB.updateEntryDB("UPDATE PROBA_PRODUCTS SET %s='%s' WHERE product_name='%s'" % (
-                extension_element, myConstants.SQLITE_TRUE, filename))
+                    extension_element, myConstants.SQLITE_TRUE, filename))
             else:
                 return -1
 
@@ -254,8 +254,8 @@ class PROBA_product:
                 logger.WriteLog("INFO: Product Insertion on DB: %s" % filename)
                 self.probaDB.insertEntryDB(
                     '''INSERT INTO PROBA_PRODUCTS (product_name,%s,insertion_date,product_type,complete) VALUES ('%s','%s','%s','%s','%s')''' % (
-                    extension_element, filename, myConstants.SQLITE_TRUE, time.time(), prodType,
-                    myConstants.SQLITE_FALSE))
+                        extension_element, filename, myConstants.SQLITE_TRUE, time.time(), prodType,
+                        myConstants.SQLITE_FALSE))
             else:
                 return -1
 
@@ -405,15 +405,23 @@ class DBWatcher:
             if datetime.now().hour == dailyHourCrontab and datetime.now().minute == 30:
                 for _pType in pType:
                     body = self.dailyReport.createDailyReport(_pType, daysDelta)
-		    s = _pType.replace("PROBA_","PROBA-1 ")
-		    mail = Mail("Dissemination Team <info@apps.eo.esa.int>", "roberto.biasutti@esa.int,bruno.schmitt@esa.int","%s daily report (%s)" % (s,(datetime.now() - timedelta(daysDelta)).strftime("%a %b %d %Y")), hostMail='localhost', bcc=None, cc="dissemination@serco.com,giulio82.villani@libero.it", logFile=None, textMail=body, port=25)
-#                    mail = Mail("Dissemination Team <info@apps.eo.esa.int>", "giulio82.villani@libero.it",                                "%s daily report (%s)" % (                                _pType, (datetime.now() - timedelta(daysDelta)).strftime("%a %b %d %Y")), hostMail='localhost',                                bbc=None, cc="alessandro.maltese@gmail.com", logFile=None, textMail=body, port=25)
+                    s = _pType.replace("PROBA_", "PROBA-1 ")
+                    mail = Mail("Dissemination Team <info@apps.eo.esa.int>",
+                                "roberto.biasutti@esa.int,bruno.schmitt@esa.int", "%s daily report (%s)" % (
+                                s, (datetime.now() - timedelta(daysDelta)).strftime("%a %b %d %Y")),
+                                hostMail='localhost', bcc=None, cc="dissemination@serco.com,giulio82.villani@libero.it",
+                                logFile=None, textMail=body, port=25)
+                    #                    mail = Mail("Dissemination Team <info@apps.eo.esa.int>", "giulio82.villani@libero.it",                                "%s daily report (%s)" % (                                _pType, (datetime.now() - timedelta(daysDelta)).strftime("%a %b %d %Y")), hostMail='localhost',                                bbc=None, cc="alessandro.maltese@gmail.com", logFile=None, textMail=body, port=25)
                     mail.sendEmail(True)
-		    logger.WriteLog("Crontab event: sent daily report at %s:%s" % (dailyHourCrontab,datetime.now().minute))
-		print "Crontab Python of %s:%s" % (dailyHourCrontab,datetime.now().minute)
+                    logger.WriteLog(
+                        "Crontab event: sent daily report at %s:%s" % (dailyHourCrontab, datetime.now().minute))
+                print "Crontab Python of %s:%s" % (dailyHourCrontab, datetime.now().minute)
+
                 time.sleep(61)
 
-if __name__ == '__main__':
 
-    dbW = DBWatcher("/nfsdata/nfsdata02/databases/converter_live/ProbaDB.sqlite", "/home/datamanager/converter-live/reports/")
+
+if __name__ == '__main__':
+    dbW = DBWatcher("/nfsdata/nfsdata02/databases/converter_live/ProbaDB.sqlite",
+                    "/home/datamanager/converter-live/reports/")
     dbW.runCheck(14)

@@ -4,10 +4,9 @@ from threading import Thread
 import os
 import traceback
 from zipfile import BadZipfile
+import glob
 import inotify.adapters
 import shutil
-import str2bool
-import hashlib
 from os import link
 import sys
 from PROBA_product import DBWatcher
@@ -29,43 +28,26 @@ GRAPHITE_EVENTS_URL = 'http://172.17.63.32:8083/events'
 #          Description              #
 #####################################
 
-CONVERTER_PATH = "CONVERTER_PATH"
-CONVERTER_CONF = "CONVERTER_CONF"
-CONVERTER_REPORT_DIR = "CONVERTER_REPORT_DIR"
-SINGLE_REPORT_PATH_FOLDER = "SINGLE_REPORT_PATH_FOLDER"
-DB_PATH = "DB_PATH"
+CONVERTER_PATH = "converter_path"
+CONVERTER_CONF = "converter_conf"
+CONVERTER_REPORT_DIR = "converter_report_dir"
 
-IN_DIR_COSMO = "IN_DIR_COSMO"
-OUT_DIR_COSMO = "OUT_DIR_COSMO"
-LINK_LTA_COSMO = "LINK_LTA_COSMO"
-TMP_LOADS_COSMO = "TMP_LOADS_COSMO"
+SINGLE_REPORT_PATH_FOLDER = "single_report_path_folder"
+DB_PATH = "db_path"
 
-IN_DIR_PROBA = "IN_DIR_PROBA"
-OUT_DIR_PROBA = "OUT_DIR_PROBA"
-LINK_LTA_PROBA = "LINK_LTA_PROBA"
-TMP_LOADS_PROBA = "TMP_LOADS_PROBA"
-OUT_REGEX_PROBA = "OUT_REGEX_PROBA"
+REPORT_PATH_FOLDER = "report_path_folder"
+OADS_INBASKET = "oads_inbasket"
+TMP_FOLDER_LOADS = "tpm_folder_loads"
+EMAIL_TO = "email_to"
 
-IN_DIR_PROBA_HRC = "IN_DIR_PROBA_HRC"
-OUT_DIR_PROBA_HRC = "OUT_DIR_PROBA_HRC"
-LINK_LTA_PROBA_HRC = "LINK_LTA_PROBA_HRC"
-TMP_LOADS_PROBA_HRC = "TMP_LOADS_PROBA_HRC"
-OUT_REGEX_PROBA_HRC = "OUT_REGEX_PROBA_HRC"
+JAVA_VM = "/nfsdata/nfsdata02/CONVERTERS/JAVA_CONVERTER/converter-COSMO/jre1.8.0_144/bin/java"
+ownership = "datamanager:datamanager"
 
-IN_DIR_DEIMOS = "IN_DIR_DEIMOS"
-OUT_DIR_DEIMOS = "OUT_DIR_DEIMOS"
-LINK_OADS_DEIMOS = "LINK_OADS_DEIMOS"
-TMP_LOADS_DEIMOS = "TMP_LOADS_DEIMOS"
-
-IN_DIR_OCEANSAT = "IN_DIR_OCEANSAT"
-OUT_DIR_OCEANSAT = "OUT_DIR_OCEANSAT"
-LINK_OADS_OCEANSAT = "LINK_OADS_OCEANSAT"
-TMP_LOADS_OCEANSAT = "TMP_LOADS_OCEANSAT"
-
-REPORT_PATH_FOLDER = "REPORT_PATH_FOLDER"
-OADS_INBASKET = "OADS_INBASKET"
-TMP_FOLDER_LOADS = "TMP_FOLDER_LOADS"
-EMAIL_TO = "EMAIL_TO"
+IN_DIR = "in_dir"
+OUT_DIR = "out_dir"
+LINK_LTA = "link_lta"
+TMP_LOADS = "tpm_loads"
+OUT_REGEX = "out_regex"
 
 JAVA_VM = "/nfsdata/nfsdata02/CONVERTERS/JAVA_CONVERTER/converter-COSMO/jre1.8.0_144/bin/java"
 ownership = "oadsrun:oads"
@@ -73,7 +55,7 @@ ownership = "oadsrun:oads"
 ####################################
 #    End Properties description    #
 ####################################
-import glob
+
 
 
 #
@@ -98,95 +80,42 @@ def find(regex):
 class Handler_JavaConverter:
 
     def __init__(self, propFilePath):
-
         self.propPath = propFilePath
         self.serv = Service()
         self.serv.init(self.propPath)
-        self.converterPath = self.serv.getProperty(CONVERTER_PATH)
-        self.converterConf = self.serv.getProperty(CONVERTER_CONF)
-        self.reportDir = self.serv.getProperty(REPORT_PATH_FOLDER)
-        self.reportDirConverter = self.serv.getProperty(CONVERTER_REPORT_DIR)
-        self.singleReportDir = self.serv.getProperty(SINGLE_REPORT_PATH_FOLDER)
-        self.confValueCOSMO = self.loadConfig("COSMO")
-        self.confValuePROBA_CHRIS = self.loadConfig("PROBA_CHRIS")
-        self.confValuePROBA_HRC = self.loadConfig("PROBA_HRC")
-        self.oadsInBasket = self.serv.getProperty(OADS_INBASKET)
-        self.tmpFolderLoads = self.serv.getProperty(TMP_FOLDER_LOADS)
-        self.JAVA_VM = self.serv.getProperty(JAVA_VM)
-        self.EMAIL_TO = self.serv.getProperty(EMAIL_TO)
-        self.generalDBPATH = self.serv.getProperty(DB_PATH)
+        self.confValuesForGlobal = self.loadMapConfig(propFilePath, "GLOBAL")
+        self.confPROBA_CHRIS = self.loadMapConfig(propFilePath, "PROBA_CHRIS")
+        self.confPROBA_HRC = self.loadMapConfig(propFilePath, "PROBA_HRC")
+        self.confCOSMO = self.loadMapConfig(propFilePath, "COSMO")
+        self.converterPath = self.confValuesForGlobal.get(CONVERTER_PATH)
+        self.converterConf = self.confValuesForGlobal.get(CONVERTER_CONF)
+        self.reportDir = self.confValuesForGlobal.get(REPORT_PATH_FOLDER)
+        self.singleReportDir = self.confValuesForGlobal.get(SINGLE_REPORT_PATH_FOLDER)
+        self.oadsInBasket = self.confValuesForGlobal.get(OADS_INBASKET)
+        self.tmpFolderLoads = self.confValuesForGlobal.get(TMP_FOLDER_LOADS)
+        self.JAVA_VM = self.confValuesForGlobal.get(JAVA_VM)
+        self.EMAIL_TO = self.confValuesForGlobal.get(EMAIL_TO)
+        self.generalDBPATH = self.confValuesForGlobal.get(DB_PATH)
         self.reportInboxLive = ReportFile(self.reportDir, "LiveInbox")
+        self.reportDirConverter = self.confValuesForGlobal.get(CONVERTER_REPORT_DIR)
+        self.reportDirConverter = self.confValuesForGlobal.get(CONVERTER_REPORT_DIR)
 
-    def loadConfig(self, collection):
-        logger.WriteLog("Loading properties parameters for %s" % collection)
-        first = None
-        second = None
-        third = None
-        fourth = None
-        fifth = None
 
-        if collection == "COSMO":
-            self.in_dir_COSMO = self.serv.getProperty(IN_DIR_COSMO)
-            self.LINK_LTA_COSMO = self.serv.getProperty(LINK_LTA_COSMO).strip()
-            self.OUTBOX_COSMO = self.serv.getProperty(OUT_DIR_COSMO)
-            self.tmpFolderLoads_COSMO = self.serv.getProperty(TMP_LOADS_COSMO)
-            first = self.in_dir_COSMO
-            second = self.LINK_LTA_COSMO
-            third = self.OUTBOX_COSMO
-            fourth = self.tmpFolderLoads_COSMO
+    def loadMapConfig(self, pathProp, collection, value=None):
+        a = Loader(pathProp)
+        propertiesMap = a.getIteamsForSection(collection)
+        if value is None:
+            return propertiesMap
+        else:
+            return propertiesMap.get(value)
 
-        if collection == "OCEANSAT":
-            self.in_dir_OCEANSAT = self.serv.getProperty(IN_DIR_OCEANSAT)
-            self.LINK_OCEANSAT = str2bool.str2bool(self.serv.getProperty(LINK_OADS_OCEANSAT).strip())
-            self.OUTBOX_OCEANSAT = self.serv.getProperty(OUT_DIR_OCEANSAT)
-            self.tmpFolderLoads_OCEANSAT = self.serv.getProperty(TMP_LOADS_OCEANSAT)
-            first = self.in_dir_OCEANSAT
-            second = self.LINK_OCEANSAT
-            third = self.OUTBOX_OCEANSAT
-            fourth = self.tmpFolderLoads_OCEANSAT
-
-        if collection == "DEIMOS":
-            self.in_dir_DEIMOS = self.serv.getProperty(IN_DIR_DEIMOS)
-            self.LINK_DEIMOS = str2bool.str2bool(self.serv.getProperty(LINK_OADS_DEIMOS).strip())
-            self.OUTBOX_DEIMOS = self.serv.getProperty(OUT_DIR_DEIMOS)
-            self.tmpFolderLoads_DEIMOS = self.serv.getProperty(TMP_LOADS_DEIMOS)
-            first = self.in_dir_DEIMOS
-            second = self.LINK_DEIMOS
-            third = self.OUTBOX_DEIMOS
-            fourth = self.tmpFolderLoads_DEIMOS
-
-        if collection == "PROBA_CHRIS":
-            self.in_dir_PROBA = self.serv.getProperty(IN_DIR_PROBA)
-            self.LINK_LTA_PROBA = self.serv.getProperty(LINK_LTA_PROBA).strip()
-            self.OUTBOX_PROBA = self.serv.getProperty(OUT_DIR_PROBA)
-            self.tmpFolderLoads_PROBA = self.serv.getProperty(TMP_LOADS_PROBA)
-            self.regex = self.serv.getProperty(OUT_REGEX_PROBA)
-            first = self.in_dir_PROBA
-            second = self.LINK_LTA_PROBA
-            third = self.OUTBOX_PROBA
-            fourth = self.tmpFolderLoads_PROBA
-            fifth = self.regex
-
-        if collection == "PROBA_HRC":
-            self.in_dir_PROBA_HRC = self.serv.getProperty(IN_DIR_PROBA_HRC)
-            self.LINK_LTA_PROBA_HRC = self.serv.getProperty(LINK_LTA_PROBA_HRC).strip()
-            self.OUTBOX_PROBA_HRC = self.serv.getProperty(OUT_DIR_PROBA_HRC)
-            self.tmpFolderLoads_PROBA_HRC = self.serv.getProperty(TMP_LOADS_PROBA_HRC)
-            self.regex_HRC = self.serv.getProperty(OUT_REGEX_PROBA_HRC)
-            first = self.in_dir_PROBA_HRC
-            second = self.LINK_LTA_PROBA_HRC
-            third = self.OUTBOX_PROBA_HRC
-            fourth = self.tmpFolderLoads_PROBA_HRC
-            fifth = self.regex_HRC
-
-        return (first, second, third, fourth, fifth)
 
     def generateReport(self, reportName, singleReportDir):
         report_ = ReportFile(self.reportDir, reportName, singleReportDir)
         return report_
 
-    def checkInputFile(self, nameFile, productType):
 
+    def checkInputFile(self, nameFile, productType):
         if (nameFile.endswith('.tgz') or nameFile.endswith('.tar.gz')) and not nameFile.startswith('.'):
             print "Checking input file and Naming Convention"
             print "Untar test running for %s/..." % nameFile
@@ -201,22 +130,16 @@ class Handler_JavaConverter:
                 self.reportInboxLive.writeLiveInboxLine("ERROR: File FAILED in InBOX", productType, nameFile)
                 return False
 
-        if nameFile.endswith('.zip') and nameFile.startswith('DE'):
-            print "Checking input file and Naming Convention"
-            print "UnZip test running..."
-            if os.system('unzip -l %s' % os.path.join(self.in_dir_DEIMOS, nameFile)) == 0:
-                print "Uzip test succesfully done for DEIMOS product"
-                return "DEIMOS"
-
-        ######## FIRST PHASE PROBA ##########
+            ######## FIRST PHASE PROBA ##########
         if (productType == "PROBA_CHRIS" or productType == "PROBA_HRC") and not nameFile.endswith(
                 "_ToCONVERT.zip") and not nameFile.endswith(".SIP.ZIP") and not nameFile.endswith("lock"):
             print "Checking input file and Naming Convention (first phase) %s " % nameFile
             logger.WriteLog("Checking input file and Naming Convention (first phase) %s " % nameFile)
             sendGraphiteEvent('NewInput', ['liveConversion', 'proba', 'newInput'], nameFile)
-            listValues = self.loadConfig(productType)
+            listValues = self.loadMapConfig(self.propPath, productType)
             try:
-                product_input = PROBA_product(productType, nameFile, listValues[0], listValues[1], listValues[2])
+                product_input = PROBA_product(productType, nameFile, listValues.get("IN_DIR"), listValues.get("LINK_LTA"),
+                                              listValues.get("OUT_DIR"))
                 exitCode = product_input.run()
                 if exitCode == 0 or exitCode == None:
                     product_input.ingestInLTA()
@@ -248,15 +171,17 @@ class Handler_JavaConverter:
         if (productType == "PROBA_CHRIS" or productType == "PROBA_HRC") and nameFile.endswith("_ToCONVERT.zip"):
             print "Checking input file and Naming Convention (second phase) %s" % nameFile
             logger.WriteLog("Checking input file and Naming Convention (second phase) %s" % nameFile)
-            listValues = self.loadConfig(productType)
-            product_input = PROBA_product(productType, nameFile.replace("_ToCONVERT", ""), listValues[0], listValues[1],
-                                          listValues[2])
+            listValues = self.loadMapConfig(self.propPath, productType)
+            product_input = PROBA_product(productType, nameFile.replace("_ToCONVERT", ""), listValues.get("IN_DIR"),
+                                          listValues.get("LINK_LTA"), listValues.get("OUT_DIR"))
+
             if not product_input.checkAlreadyConverted():
                 product_input.setAlreadyConverted()
                 return productType
             else:
                 return -1
         return -1
+
 
     def hardLinkLongTermArchive(self, absFileTgt, folderLinkPath):
         try:
@@ -267,6 +192,7 @@ class Handler_JavaConverter:
             print "File copied in LTA: %s " % linkName
 
             return exitCode
+
         except:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print "Error moving to LTA '%s': %s %s" % (type, absFileTgt, exc_obj)
@@ -274,8 +200,8 @@ class Handler_JavaConverter:
             traceback.print_exc(file=sys.stdout)
             raise Exception("Error moving to LTA '%s': %s %s" % (type, absFileTgt, exc_obj))
 
-    def sendMail(self, collectionName, nameFile, message):
 
+    def sendMail(self, collectionName, nameFile, message):
         try:
             text = "ERROR during conversion of %s product (%s) - %s -" % (collectionName, nameFile, message)
             subject = "PROBA Conversion Error"
@@ -292,8 +218,8 @@ class Handler_JavaConverter:
             traceback._print(s)
             print s
 
-    def getCollectionList(self):
 
+    def getCollectionList(self):
         listPath = self.serv.getpropertiesByRegeX("IN_DIR_")
         listCollection = []
         for element in listPath:
@@ -313,10 +239,12 @@ class Handler_JavaConverter:
             logger.WriteLog("Moved %s in %s" % (i, tmpDir))
         if exitCode == 0:
             print "Change ownership on file"
+
             exitCode = os.system("chown -R %s %s" % (ownership, tmpDir))
             logger.WriteLog("Change ownership on file (%s) " % tmpDir)
         if exitCode == 0:
             print "Change permissions on file"
+
             exitCode = os.system("chmod -R 755 %s" % tmpDir)
             logger.WriteLog("Change permissions on file (%s)" % tmpDir)
         if exitCode == 0 and len(glob.glob(os.path.join(tmpDir, "*"))) != 0:
@@ -325,16 +253,36 @@ class Handler_JavaConverter:
             exitCode = os.system("mv %s %s" % (os.path.join(tmpDir, "*"), self.oadsInBasket))
         return exitCode
 
+    def startingReportPhase(self, colletionName, reportFinal):
+        if str(datetime.now().strftime("%Y%m%d")).endswith("01") and not reportFinal.getReportPath().__contains__(
+                datetime.now().strftime("%Y%m")):
+            reportFinal = self.generateReport(colletionName, self.singleReportDir)
+
+        return reportFinal
+
+
+    def writeResultOnReport(self, current_collectionName, exitCodeConversion, Conversion, reportFinal, singleFile,
+                            exitCodeIngestion, Ingest, filename):
+        # UPDATE CONVERTER REPORT
+        if ((exitCodeConversion != 0 or current_collectionName == False) and Conversion == True):
+            reportFinal.writeLine(singleFile, "FAILED", "N/A")
+        elif Conversion == False:
+            pass
+        else:
+            reportFinal.writeLine(singleFile, "SUCCESS", self.createMD5(singleFile))
+        # UPDATE INGESTER REPORT
+        if ((
+                exitCodeIngestion != 0 or current_collectionName == False) and Ingest == True and exitCodeConversion != 0):
+            reportFinal.writeLineIngester(filename, "FAILED")
+        else:
+            reportFinal.writeLineIngester(filename, "INGESTED")
+
     def cyclingOnDir(self, inotifyObj, colletionName, Conversion, Ingest):
 
-        collectionConfigurations = self.loadConfig(colletionName)
+        collectionConfigurations = self.loadMapConfig(self.propPath, colletionName)
         reportFinal = self.generateReport(colletionName, self.singleReportDir)
 
         for event in inotifyObj.event_gen():
-
-            if str(datetime.now().strftime("%Y%m%d")).endswith("01") and not reportFinal.getReportPath().__contains__(
-                    datetime.now().strftime("%Y%m")):
-                reportFinal = self.generateReport(colletionName, self.singleReportDir)
 
             if event is not None:
                 (header, type_names, watch_path, filename) = event
@@ -349,72 +297,73 @@ class Handler_JavaConverter:
                     if current_collectionName != False and current_collectionName != -1:
                         # run CONVERTION
                         if Conversion == True:
-                            exitCodeConvertion = self.runConversion(current_collectionName, watch_path, filename,
-                                                                    reportFinal)
-                            sendGraphiteEvent('ConversionDone', ['liveConversion', 'proba', 'eosipConversion'], filename)
-                            if exitCodeConvertion == 0:
-                                print "\n\n###############################################################################################\n\n" \
-                                      "    EOSIP CONVERTION OF %s HAS BEEN DONE!\n\n" \
-                                      "###############################################################################################\n\n" % filename
-                                logger.WriteLog(
-                                    "####################### EOSIP CONVERTION OF %s HAS BEEN DONE! #########################" % filename)
+                            exitCodeConversion = self.conversionPhase(current_collectionName, watch_path, filename,
+                                                                      reportFinal)
+
                         # run INGESTER
-                        if Ingest == True and exitCodeConvertion == 0:
-                            exitCodeIngestion = self.runIngester(collectionConfigurations[2], reportFinal,
-                                                                 collectionConfigurations[3],
-                                                                 collectionConfigurations[4])
-                            sendGraphiteEvent('IngestionDone', ['liveConversion', 'proba', 'ingestion'], filename)
-                            if exitCodeConvertion == 0:
-                                print "\n\n###############################################################################################\n\n" \
-                                      "    LOADS INGESTION OF %s HAS BEEN DONE!\n\n" \
-                                      "###############################################################################################\n\n" % filename
-                                logger.WriteLog(
-                                    "####################### LOADS INGESTION OF %s HAS BEEN DONE! #########################" % filename)
+                        if Ingest == True and exitCodeConversion == 0:
+                            exitCodeIngestion = self.ingestPhase(collectionConfigurations, reportFinal, filename)
 
                     if current_collectionName != -1:
-                        # UPDATE CONVERTER REPORT
-                        if ((exitCodeConvertion != 0 or current_collectionName == False) and Conversion == True):
-                            reportFinal.writeLine(singleFile, "FAILED", "N/A")
-                        elif Conversion == False:
-                            pass
-                        else:
-                            reportFinal.writeLine(singleFile, "SUCCESS", md5.createMD5(singleFile))
-                        # UPDATE INGESTER REPORT
-
-                        if Ingest is False or exitCodeConvertion != 0:
-                            pass
-                        elif ((exitCodeIngestion != 0) and (Ingest is True) and (exitCodeConvertion == 0)):
-                            reportFinal.writeLineIngester(filename, "FAILED")
-                        else:
-                            reportFinal.writeLineIngester(filename, "INGESTED")
+                        self.writeResultOnReport(current_collectionName, exitCodeConversion, Conversion, reportFinal,
+                                                 singleFile, exitCodeIngestion, Ingest, filename)
 
         print "Handler phase complete!\n\n\n"
-        logger.WriteLog("Handler phase complete!\n\n")
+        logger.WriteLog("Handler phase complete!\n\n\n")
         pass
 
-    def runConversion(self, _collectionName, _watch_path, _filename, _report):
 
+    def conversionPhase(self, current_collectionName, watch_path, filename,  reportFinal):
+        exitCodeConversion = self.runConversion(current_collectionName, watch_path, filename, reportFinal)
+        sendGraphiteEvent('ConversionDone', ['liveConversion', 'proba', 'eosipConversion'], filename)
+        if exitCodeConversion == 0:
+            conversionBanner = "\n\n###############################################################################################\n\n" \
+                               "    EOSIP Conversion OF %s HAS BEEN DONE!\n\n" \
+                               "###############################################################################################\n\n" % filename
+            print conversionBanner
+            logger.WriteLog(conversionBanner)
+
+        return exitCodeConversion
+
+
+    def ingestPhase(self, collectionConfigurations, reportFinal,filename):
+        exitCodeIngestion = self.runIngester(collectionConfigurations.get("OUT_DIR"), reportFinal,
+                                             collectionConfigurations.get("TMP_LOADS"),
+                                             collectionConfigurations.get("OUT_REGEX"))
+        sendGraphiteEvent('IngestionDone', ['liveConversion', 'proba', 'ingestion'], filename)
+        if exitCodeIngestion == 0:
+            ingestionBanner = "\n\n###############################################################################################\n\n" \
+                              "    LOADS INGESTION OF %s HAS BEEN DONE!\n\n" \
+                              "###############################################################################################\n\n" % filename
+            print ingestionBanner
+            logger.WriteLog(ingestionBanner)
+
+        return exitCodeIngestion
+
+
+    def runConversion(self, _collectionName, _watch_path, _filename, _report):
         print "Preparing to convert %s products" % _filename
-        logger.WriteLog("Preparing to convert %s products" % _filename)
+
         singleFile = os.path.join(_watch_path, _filename)
         if os.path.isfile(singleFile):
             print "%s -jar %s -collectionName %s -s %s -c %s -i 1" % (
                 JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf)
-            logger.WriteLog("%s -jar %s -collectionName %s -s %s -c %s -i 1" % (
-                JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf))
             exitCode = os.system("%s -jar %s -collectionName %s -s %s -c %s -i 1" % (
+                JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf))
+            logger.WriteLog("%s -jar %s -collectionName %s -s %s -c %s -i 1" % (
                 JAVA_VM, self.converterPath, _collectionName, singleFile, self.converterConf))
         else:
             exitCode = -1
         return exitCode
 
+
     def run(self):
         sendGraphiteEvent('Starting', ['liveConversion', 'proba', 'starting'], 'Starting live converter')
-        i_cosmo = inotify.adapters.InotifyTree(self.in_dir_COSMO)
-        i_proba_CHRIS_firstPhase = inotify.adapters.InotifyTree(self.in_dir_PROBA)
-        i_proba_CHRIS_secondPhase = inotify.adapters.InotifyTree(self.OUTBOX_PROBA)
-        i_proba_HRC_firstPhase = inotify.adapters.InotifyTree(self.in_dir_PROBA_HRC)
-        i_proba_HRC_secondPhase = inotify.adapters.InotifyTree(self.OUTBOX_PROBA_HRC)
+        i_cosmo = inotify.adapters.InotifyTree(self.confCOSMO.get(IN_DIR))
+        i_proba_CHRIS_firstPhase = inotify.adapters.InotifyTree(self.confPROBA_CHRIS.get(IN_DIR))
+        i_proba_CHRIS_secondPhase = inotify.adapters.InotifyTree(self.confPROBA_CHRIS.get(OUT_DIR))
+        i_proba_HRC_firstPhase = inotify.adapters.InotifyTree(self.confPROBA_HRC.get(IN_DIR))
+        i_proba_HRC_secondPhase = inotify.adapters.InotifyTree(self.confPROBA_HRC.get(OUT_DIR))
 
         Thread(target=self.cyclingOnDir, args=(i_cosmo, "COSMO", True, True,)).start()
         Thread(target=self.cyclingOnDir, args=(i_proba_HRC_firstPhase, "PROBA_HRC", False, False,)).start()
@@ -453,6 +402,7 @@ if __name__ == '__main__':
         logger.WriteLog("Start LOGGER")
         hand = Handler_JavaConverter("handler.properties")
         hand.run()
+
     except KeyboardInterrupt:
 
         print "\nbye bye"

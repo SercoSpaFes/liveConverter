@@ -20,9 +20,7 @@ class ReportFile:
         else:
             self.singleReportDir = None
             self.collectionFileIngester = None
-        self.collectionFile = os.path.join(_reportPath,
-                                           "%s_report_%s.csv" % (_collectionName, datetime.now().strftime("%Y%m")))
-
+        self.collectionFile = os.path.join(_reportPath, "%s_report_%s.csv" % (_collectionName, datetime.now().strftime("%Y%m")))
         self.sumConverted = 0
         self.sumProcessed = 0
         self.sumProcessedIngester = 0
@@ -138,6 +136,43 @@ class ReportReader:
         self.reportPathFolder = reportPathFolder
         self.dbAbsFilePath = dbPath
         self.DB = DataBaseLite(dbPath, None)
+        self.space = "<br>"
+        self.style = '''
+                        table.minimalistBlack {
+                          border: 3px solid #000000;
+                          background-color: #EEEEEE;
+                          text-align: left;
+                          border-collapse: collapse;
+                        }
+                        table.minimalistBlack td, table.minimalistBlack th {
+                          border: 1px solid #000000;
+                          padding: 5px 4px;
+                        }
+                        table.minimalistBlack tbody td {
+                          font-size: 13px;
+                        }
+                        table.minimalistBlack tr:nth-child(even) {
+                          background: #D0E4F5;
+                        }
+                        table.minimalistBlack thead {
+                          background: #CFCFCF;
+                          border-bottom: 2px solid #000000;
+                        }
+                        table.minimalistBlack thead th {
+                          font-size: 15px;
+                          font-weight: bold;
+                          color: #000000;
+                          text-align: left;
+                          border-left: 1px solid #D0E4F5;
+                        }
+                        table.minimalistBlack thead th:first-child {
+                          border-left: none;
+                        }
+
+                        table.minimalistBlack tfoot td {
+                          font-size: 14px;
+                        }
+                            '''
 
     def findMissingFile(self, resultSet):
         missing = []
@@ -160,48 +195,11 @@ class ReportReader:
         return missing
 
     def createDailyReport(self, productType, days=1):
-        style = '''
-        table.minimalistBlack {
-          border: 3px solid #000000;
-          background-color: #EEEEEE;
-          text-align: left;
-          border-collapse: collapse;
-        }
-        table.minimalistBlack td, table.minimalistBlack th {
-          border: 1px solid #000000;
-          padding: 5px 4px;
-        }
-        table.minimalistBlack tbody td {
-          font-size: 13px;
-        }
-        table.minimalistBlack tr:nth-child(even) {
-          background: #D0E4F5;
-        }
-        table.minimalistBlack thead {
-          background: #CFCFCF;
-          border-bottom: 2px solid #000000;
-        }
-        table.minimalistBlack thead th {
-          font-size: 15px;
-          font-weight: bold;
-          color: #000000;
-          text-align: left;
-          border-left: 1px solid #D0E4F5;
-        }
-        table.minimalistBlack thead th:first-child {
-          border-left: none;
-        }
 
-        table.minimalistBlack tfoot td {
-          font-size: 14px;
-        }
-            '''
-
-        space = "<br>"
         now = datetime.now()
         seconds_since_midnight = (now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
         yesterday_00_00 = time.time() - seconds_since_midnight
-        reportPath = os.path.join(self.reportPathFolder, "%s/_1/conversionReport" % productType)
+        reportPath = os.path.join(self.reportPathFolder, "reports/%s/_1/conversionReport" % productType)
         reports = self.getReportsByDay(reportPath, yesterday_00_00, days)
         tupleSuccess = self.generateReportSuccess(reports)
         tupleFailed = self.generateReportFailed(reports)
@@ -225,25 +223,25 @@ class ReportReader:
             tupleSuccess.append("No products success,,")
         tableSuccess = self.createTableReport(tupleSuccess, ["PRODUCT", "Reception Date", "Time"])
         tableFailed = self.createTableReport(tupleFailed, ["PRODUCT", "Reception Date", "Time", "Comment"])
-        totalBody = "<head><meta><style>%s</style></head><body>" % style
+        totalBody = "<head><meta><style>%s</style></head><body>" % self.style
         totalBody += "Dear all,"
-        totalBody += "%s %s" % (space, space)
+        totalBody += "%s %s" % (self.space, self.space)
         totalBody += "Please find here below the %s Live data conversion daily report for %s:" % (
         productType, (datetime.now() - timedelta(days)).strftime("%a %b %d %Y"))
-        totalBody += "%s %s" % (space, space)
+        totalBody += "%s %s" % (self.space, self.space)
         totalBody += "<b>Successful conversions</b>"
-        totalBody += "%s %s" % (space, space)
+        totalBody += "%s %s" % (self.space, self.space)
 
         # totalBody += tableFailed
         totalBody += tableSuccess
-        totalBody += "%s %s" % (space, space)
+        totalBody += "%s %s" % (self.space, self.space)
         totalBody += "<b>Failed conversions</b>"
-        totalBody += "%s %s" % (space, space)
+        totalBody += "%s %s" % (self.space, self.space)
         totalBody += tableFailed
         # totalBody += tableSuccess
-        totalBody += "%s %s" % (space, space)
+        totalBody += "%s %s" % (self.space, self.space)
         totalBody += "Regards,"
-        totalBody += "%s" % (space)
+        totalBody += "%s" % (self.space)
         totalBody += "FES Dissemination Team</body>"
 
         return totalBody
@@ -368,23 +366,53 @@ class ReportReader:
             add = 0
         return failed
 
-    def getLiveInboxFailed(self, reportPath="/home/datamanager/converter-live/handler", lowRange, highRange):
-        inboxFile = glob.glob("%s/LiveInbox_report_%s%s.csv" % (reportPath, datetime.now().year,datetime.strftime('%m')))
-        flines = open(inboxFile, 'r').readlines()
+    def getLiveInboxFailed(self, reportPath, lowRange, highRange):
+        inboxFile = glob.glob("%s/LiveInbox_report_%s%s.csv" % (
+        reportPath, datetime.now().strftime('%Y'), datetime.now().strftime('%m')))
+
         failed = []
-        for report in flines:
-#Problem: (FirstPhase) File FAILED in InBOX,2018-04-23 22:30:10.334681,PROBA_CHRIS,/nfsdata2/PROBA/Inbox/CHRIS/CHRIS_KA_180413_4762_41.zip,1524515410,12234543(size)
-            if report[4] > lowRange and report[4] < highRange:
-                size         = report[5]
-                epochTime    = report[4]
-                absPathFile  = report[3]
-                prodType     = report[2]
-                humanDate    = report[1]
-                messageError = "Corrupted File (bad zip/bad file size)"
-                dateSplit = humanDate.split(" ")
-                failed.append("%s,%s,%s,%s" % (os.path.basename(absPathFile), dateSplit[0], dateSplit[1],messageError) )
+        if not len(inboxFile) == 0:
+            flines = open(inboxFile[0], 'r').readlines()
+            for report in flines:
+                _report = report.split(",")
+                # Problem: (FirstPhase) File FAILED in InBOX,2018-04-23 22:30:10.334681,PROBA_CHRIS,/nfsdata2/PROBA/Inbox/CHRIS/CHRIS_KA_180413_4762_41.zip,1524515410,12234543(size)
+                if int(_report[4]) > lowRange and int(_report[4]) < highRange:
+                    size = _report[5]
+                    epochTime = int(_report[4])
+                    absPathFile = _report[3]
+                    prodType = _report[2]
+                    messageError = "Corrupted File (bad zip/bad file size)"
+                    dateSplit = _report[1].split(" ")
+                    failed.append(
+                        "%s,%s,%s,%s" % (os.path.basename(absPathFile), dateSplit[0], dateSplit[1], messageError))
         return failed
 
+    def createLiveInboxReport(self,days):
+        now = datetime.now()
+        seconds_since_midnight = (now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
+        yesterday_00_00 = time.time() - seconds_since_midnight
+        reportPath = os.path.join(self.reportPathFolder, "handler")
+
+        lower_range = yesterday_00_00 - (86400 * (days))
+        higher_range = yesterday_00_00 - (86400 * (days - 1))
+        tupleFailed = self.getLiveInboxFailed("%s" % reportPath ,lower_range, higher_range)
+
+        if len(tupleFailed) == 0:
+            tupleFailed.append("No products failed in inbox,,,")
+
+        tableFailed = self.createTableReport(tupleFailed, ["PRODUCT", "Reception Date", "Time", "Comment"])
+        totalBody = "<head><meta><style>%s</style></head><body>" % self.style
+        totalBody += "Dear all,"
+        totalBody += "%s %s" % (self.space, self.space)
+        totalBody += "Please find here below the Products failed in Inbox on %s:" % (datetime.now() - timedelta(days)).strftime("%a %b %d %Y")
+        totalBody += "%s %s" % (self.space, self.space)
+        totalBody += tableFailed
+        totalBody += "%s %s" % (self.space, self.space)
+        totalBody += "Regards,"
+        totalBody += "%s" % (self.space)
+        totalBody += "FES Dissemination Team</body>"
+
+        return totalBody
 
 
 class Md5Manifest():
